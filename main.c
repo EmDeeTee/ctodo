@@ -11,6 +11,7 @@
 #define KEY_W 119
 #define KEY_S 115
 #define KEY_A 97
+#define KEY_D 100
 #define KEY_Q 113
 #define KEY_SPACE 32
 
@@ -63,6 +64,16 @@ void add_todo(void) {
   noecho();
 }
 
+void remove_todo(size_t at) {
+  if (at < todo_count) {
+    free(todos[at].content);
+    for (int i = at; i < todo_count - 1; i++) {
+      todos[i] = todos[i + 1];
+    }
+    todo_count--;
+  }
+}
+
 void save_state_to_db(void) {
   FILE* fdb = fopen(DB_FILENAME, "w");
   for (int i = 0; i < todo_count; i++) {
@@ -112,6 +123,9 @@ void app_loop(void) {
       break;
     case KEY_Q:
       exit_app(0);
+      break;
+    case KEY_D:
+      remove_todo(todo_selected);
       break;
     }
     clear();
