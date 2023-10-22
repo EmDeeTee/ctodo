@@ -15,18 +15,19 @@
 #define KEY_Q 113
 #define KEY_SPACE 32
 
-#define TODO_CAP 32
+#define TODO_CAP 256
 
 // NOTE: All db-reading functions assume the db file is in the woroking directory
 #define DB_FILENAME "todo.db"
-
-size_t todo_selected = 0;
 
 typedef struct TodoItem {
   char* content;
   bool isCompleted;
 }TodoItem;
 
+WINDOW* pad;
+size_t todo_selected = 0;
+int pad_start = 0;
 TodoItem todos[TODO_CAP] = {0};
 size_t todo_count = 0;
 
@@ -36,18 +37,28 @@ void notify(const char* msg) {
 }
 
 void print_todos(void) {
-  for (int i=0; i < todo_count; i++) {
+  int max_y, max_x = 0;
+  max_x = 0 - max_x; // Unused
+  const int msg_line = LINES - 1;
+  getmaxyx(pad, max_y, max_x);
+  int visible_rows = max_y - pad_start - 1;
+  for (int i = 0; i < todo_count; i++) {
     if (i == todo_selected) {
-      attron(A_STANDOUT);
+      wattron(pad, A_STANDOUT);
     }
     if (todos[i].isCompleted) {
-      printw("[x] ");
+      wprintw(pad, "[x] ");
     } else {
-      printw("[] ");
+      wprintw(pad, "[] ");
     }
-    printw("%s\n", todos[i].content);
-    attroff(A_STANDOUT);
+    wprintw(pad, "%s\n", todos[i].content);
+    wattroff(pad, A_STANDOUT);
   }
+  if (visible_rows > LINES - 1)
+    mvprintw(msg_line, 0, "SCROLL FOR MORE");
+  else
+    mvprintw(msg_line, 0, "               ");
+  prefresh(pad, pad_start, 0, 0, 0, msg_line - 1, COLS);
 }
 
 void add_todo(void) {
@@ -108,12 +119,16 @@ void app_loop(void) {
     int c = getch();
     switch (c) {
     case KEY_W:
-      if (todo_selected > 0)
+      if (todo_selected > 0) {
         todo_selected--;
+	pad_start--;
+      }
       break;
     case KEY_S:
-      if (todo_selected < (todo_count - 1))
+      if (todo_selected < (todo_count - 1)) {
         todo_selected++;
+	pad_start++;
+      }
       break;
     case KEY_SPACE:
       todos[todo_selected].isCompleted = !todos[todo_selected].isCompleted;
@@ -128,8 +143,8 @@ void app_loop(void) {
       remove_todo(todo_selected);
       break;
     }
-    clear();
-    refresh();
+    wclear(pad);
+    wrefresh(pad);
     print_todos();
   }
 }
@@ -138,14 +153,15 @@ void init_todo_app(void) {
   noecho();
   signal(SIGINT, exit_app);
   read_state_from_db();
+  pad = newpad(todo_count + 1, COLS);
   print_todos();
   refresh();
+  wrefresh(pad);
 }
 
 int main(void) {
   init_todo_app();
   app_loop();
-  
   endwin();
   return 0;
 }
